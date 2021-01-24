@@ -1,0 +1,145 @@
+### Multilateral Development Institution Data
+foo <- read.csv("https://tinyurl.com/yb4phxx8") # read in the data
+
+# column names
+names(foo)
+
+# dimensions of the data set
+dim(foo)
+
+# quick look at the data structure
+head(foo)
+
+# one thing to be very careful with (in this data set) is the use of dates. 8 columns involve dates.
+
+# take note of the columns representing calendar dates
+date.columns <- c(11, 12, 14, 15, 16, 17, 18, 25)
+
+# these columns need some tweaking--I want to address missing values, calling the blank (empty) 
+# elements "NA" instead of leaving them blank, and I wish to tell R these are "Date" objects.
+
+for(i in date.columns)  # this "for loop" only loops through the "date.columns" -- no other columns.
+
+  {
+  
+  # identify which values are missing in the "i"th column of the foo data set
+  which_values_are_missing <- which(as.character(foo[, i]) == "")
+  
+  # those values that are missing (blank) in the "i"th column are replaced by <NA>
+  # because R knows how to handle "NA" -- NA means something special in R--blanks are handled 
+  # more unpredictably (which is bad).
+  foo[which_values_are_missing, i] <- NA
+  
+  # last step--replace each of these columns (which is structured as a column of "factor" values)
+  # as a column of dates--i.e., convert them to an object of "class" = Date. They are dates, after all.
+  # And if you convert them to the Date class, R will know they are dates and you can manipulate 
+  # dates in a simple, straightforward way. Otherwise, you won't be able to easily manipulate them
+  # arithmetically.  E.g., for simple Date operations, see lines 48-58 below...
+  # **By the way, if you don't understand what a "factor" is in R, you should Google it.** 
+  foo[, i] <- as.Date(as.character(foo[, i]))
+
+  }
+
+# Now R knows that these columns are comprised of dates
+# for example...  Replicate this yourself...
+
+# foo[3,12]
+# [1] "1968-03-13"
+
+# foo[4,12]
+# [1] "1968-07-03"
+
+# foo[3,12] - foo[4,12]
+# Time difference of -112 days
+
+# Also, one additional helpful hint... How to eliminate rows with NAs...
+# The "is.na" function--for more info, Google it or type ?is.na at the R command prompt in the console.
+which.have.NAs <- which(is.na(foo$Rating == TRUE)) # for which rows is the claim "is.na" a TRUE claim?
+
+# Then, if you wanted to, e.g., remove all those rows, retaining only the rows with ratings...
+new_foo <- foo[-which.have.NAs, ]
+# Notice I called this tweaked data set "new_foo" instead of rewriting over the original data set...
+# It's a bit safer to do this, in case I decide I want to quickly revert back to the original data set.
+
+#Mycode
+
+#exclude old data and missing data
+newt_foo <- new_foo[new_foo$CirculationDate >= as.Date("2008-01-01"),]
+which.have.NAs <- which(is.na(newt_foo$CirculationDate == TRUE))
+newt_foo <- newt_foo[-which.have.NAs, ]
+
+
+#1A
+
+#delete missing data for question 1
+q1_foo <- newt_foo[! (is.na(newt_foo$OriginalCompletionDate)) & ! (is.na(newt_foo$ApprovalDate)), ]
+#calculate mean 
+mean(q1_foo$OriginalCompletionDate - q1_foo$ApprovalDate)
+
+#define data frames for new and old projects
+q1_foo_old <- q1_foo[q1_foo$ApprovalDate < as.Date("2013-01-01"),]
+q1_foo_new <- q1_foo[q1_foo$ApprovalDate >= as.Date("2013-01-01"),]
+#calculate mean, median and quantile for both
+mean(q1_foo_old$OriginalCompletionDate - q1_foo_old$ApprovalDate)
+mean(q1_foo_new$OriginalCompletionDate - q1_foo_new$ApprovalDate)
+median(q1_foo_old$OriginalCompletionDate - q1_foo_old$ApprovalDate)
+median(q1_foo_new$OriginalCompletionDate - q1_foo_new$ApprovalDate)
+quantile(q1_foo_old$OriginalCompletionDate - q1_foo_old$ApprovalDate)
+quantile(q1_foo_new$OriginalCompletionDate - q1_foo_new$ApprovalDate)
+
+#1B
+
+#calculte medians, means and quantiles
+mean(q1_foo$OriginalCompletionDate - q1_foo$ApprovalDate)
+mean(q1_foo$RevisedCompletionDate - q1_foo$ApprovalDate)
+median(q1_foo$OriginalCompletionDate - q1_foo$ApprovalDate)
+median(q1_foo$RevisedCompletionDate - q1_foo$ApprovalDate)
+quantile(q1_foo$OriginalCompletionDate - q1_foo$ApprovalDate)
+quantile(q1_foo$RevisedCompletionDate - q1_foo$ApprovalDate)
+
+mean(q1_foo$RevisedCompletionDate - q1_foo$OriginalCompletionDate)
+median(q1_foo$RevisedCompletionDate - q1_foo$OriginalCompletionDate)
+quantile(q1_foo$RevisedCompletionDate - q1_foo$OriginalCompletionDate)
+
+#2
+
+#calcultae percentages
+rating_per <- c((sum(newt_foo$Rating == 0)*100)/length(newt_foo$Rating),(sum(newt_foo$Rating == 1)*100)/length(newt_foo$Rating),(sum(newt_foo$Rating == 2)*100)/length(newt_foo$Rating),(sum(newt_foo$Rating == 3)*100)/length(newt_foo$Rating))
+
+#create barplot
+barplot(rating_per, main="Percentages of project ratings on a sclale of 0 to 3",
+        xlab="Ratings", names.arg = c("0", "1", "2", "3"), ylab = "percent")
+
+#3
+
+#create data frame for question
+q3_foo <- newt_foo[! newt_foo$Type == "PPTA",]
+
+
+#calcualte new percentages without PPTA
+rating_per2 <- c((sum(q3_foo$Rating == 0)*100)/length(q3_foo$Rating),(sum(q3_foo$Rating == 1)*100)/length(q3_foo$Rating),(sum(q3_foo$Rating == 2)*100)/length(q3_foo$Rating),(sum(q3_foo$Rating == 3)*100)/length(q3_foo$Rating))
+
+#create new barplot
+barplot(rating_per2, main="Percentages of project ratings on a sclale of 0 to 3 without PPTA projects",
+        xlab="Ratings", names.arg = c("0", "1", "2", "3"), ylab = "percent")
+
+#4
+
+#caclate statistics to compare rankings for projects with high and low budgets
+quantile(newt_foo$RevisedAmount)
+mean(newt_foo[newt_foo$RevisedAmount<= 0.400,]$Rating)
+mean(newt_foo[newt_foo$RevisedAmount>= 1.000,]$Rating)
+median(newt_foo[newt_foo$RevisedAmount<= 0.400,]$Rating)
+median(newt_foo[newt_foo$RevisedAmount>= 1.000,]$Rating)
+
+t.test(newt_foo[newt_foo$RevisedAmount<= 0.400,]$Rating, newt_foo[newt_foo$RevisedAmount>= 1.000,]$Rating, alternative = "two.sided", var.equal = FALSE)
+
+#tables of other possibly confounding variables
+table(newt_foo[!(is.na(newt_foo$Dept)) & newt_foo$RevisedAmount<= 0.400,]$Dept)
+table(newt_foo[!(is.na(newt_foo$Dept)) & newt_foo$RevisedAmount>= 1.000,]$Dept)
+table(newt_foo[!(is.na(newt_foo$Division)) & newt_foo$RevisedAmount<= 0.400,]$Division)
+table(newt_foo[!(is.na(newt_foo$Division)) & newt_foo$RevisedAmount>= 1.000,]$Division)
+table(newt_foo[!(is.na(newt_foo$Cluster)) & newt_foo$RevisedAmount<= 0.400,]$Cluster)
+table(newt_foo[!(is.na(newt_foo$Cluster)) & newt_foo$RevisedAmount>= 1.000,]$Cluster)
+table(newt_foo[!(is.na(newt_foo$Country)) & newt_foo$RevisedAmount<= 0.400,]$Country)
+table(newt_foo[!(is.na(newt_foo$Country)) & newt_foo$RevisedAmount>= 1.000,]$Country)
