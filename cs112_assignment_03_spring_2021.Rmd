@@ -1,11 +1,3 @@
----
-title: "CS112 Assignment 3, Spring 2021"
-author: "Joram Erbarth"
-date: "03/18/2021"
-output:
-  word_document: default
-  pdf_document: default
----
 
 ```{r setup, include=FALSE}
 # Don't change this part of the document
@@ -30,55 +22,16 @@ library(rbounds)
 # we need to set the seed of R's random number generator, 
 # in order to produce comparable results 
 set.seed(123)
-```
 
-# A few important notes
-
-**Option 1 for submitting your assignment**: *This method is actually preferred. This is an RMarkdown document. Did you know you can open this document in RStudio, edit it by adding your answers and code, and then knit it to a pdf? To submit your answers to this assignment, simply knit this file as a pdf and submit it as a pdf on Forum. All of your code must be included in the resulting pdf file, i.e., don't set echo = FALSE in any of your code chunks. [This](https://rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf) is a cheat sheet for using Rmarkdown. If you have questions about RMarkdown, please post them on Piazza. Try knitting this document in your RStudio. You should be able to get a pdf file. At any step, you can try knitting the document and recreate a pdf. If you get an error, you might have incomplete code.*
-
-**Option 2 for submitting your assignment**: *If you are not comfortable with RMarkdown, you can also choose the Google Doc version of this assignment, make a copy of it and edit the Google doc (include your code, figures, results, and explanations) and at the end download your Google Doc as a pdf and submit the pdf file.*
-
-**Note**: *Either way (if you use Rmd and knit as pdf OR if you use Google Doc and download as pdf) you should make sure you put your name on top of the document.*
-
-**Note**: *The first time you run this document you may get an error that some packages don't exist. If you don't have the packages listed on top of this document, install them first and you won't get those errors.*
-
-**Note**: *Don't change seed in the document. The function `set.seed()` has already been set at the beginning of this document to 928. Changing the see again to a different number will make your results not replicable.*
-
-
-## QUESTION 1: LEAD AND MORTALITY
-
-Lead is a highly toxic metal that has really negative health outcomes, especially in young children. Unfortunately, traditionally lead has been used in paint in houses. Lead use in paint is now banned. In this exercise, you will be estimating the causal effect of lead on infant mortality based on data on 172 US cities in 1900 in the US. Read more about the data and the variables in it here and download the data by using the following package.
-
-```{r}
 library(foreign)
 lead <- read.dta("https://wps.pearsoned.com/wps/media/objects/11422/11696965/data3eu/lead_mortality.dta")
 
-```
-
-Specifically, the outcome variable is `infrate` and the treatment is `lead`.
-
-#### STEP 1
-
-Think about which one of the covariates in the data are relevant to your study and pick two of the most important ones. Specifically which ones are both correlated with the outcome and the treatment variable. Explain why these two variables made it to your list.
-
-```{r}
 #create a subset without the year, city and state 
 leadnu = subset(lead, select = -c(year, city, state) )
 #creating correlation coefficients between variables
 cor(leadnu)
 
-```
 
-I looked at all the correlation coefficients between variables. Before that, I removed the variable year because the year is always 1900, so it cannot influence the other variables. Further, I removed city and state because they are not numeric. I could have used dummy variables to check for correlations, but it is reasonable to assume that the region and the city do not influence the outcome. With the rest of the data I created a table showing all correlations between each other. Then I looked at the columns infrate and lead to pick variables that correlate to both. I considered the variables age, hardness, and ph because they have the highest correlation coefficient with both, infrate and lead. I chose ph and hardness, because ph is the most correlated to infrate and hardness is the most correlated to lead.
-
-#### STEP 2
-
-Are the two variables you picked in the step above balanced across the treatment and control groups? You can use any R function from any package to check this (for instance, you can check the cobalt package). You can also use the `MatchBalance()` function. Show your data visualization and explain.
-
-**Note**: *This is optional but you can use the `gridExtra` package and its `grid.arrange()` function to put all the 4 graphs in one 2 x 2 graph. Read more about the package and how to use it here: https://cran.r-project.org/web/packages/egg/vignettes/Ecosystem.html. Set `nrow = 2`.*
-
-```{r}
-# Your code here
 
 #check if varaibles are balanced with MatchBalance function
 MatchBalance(lead$lead~lead$hardness + lead$ph)
@@ -107,38 +60,11 @@ MatchBalance(lead$lead~lead$hardness + lead$ph)
  
 #combine plots
 grid.arrange(p1, p2,p3, p4, top = "before Matching")
- 
-```
 
-We can see in the histograms and in the output of the match balance function, that both covariates are not well balanced between the treatment and the control group. In the histograms, we can see that there are higher values for hardness in the treatment group. This leads to the higher mean we can see in the output of the match balance function. Further, we can see there that the p value corresponding to the means is very small and statistically significant which means that hardness is very unbalanced. 
-Similar observations can be made for ph. In the histogram we can see that ph values are higher for the treated group which corresponds to a higher mean. Here, the p value is very small (although larger than for hardness) and statistically significant, which means that ph is unbalanced as well. 
-
-#### STEP 3
-
-Write code that would simply calculate the Prima Facie treatment effect in the data above. What's the Prima Facie treatment effect?
-
-```{r}
 # Your code here
 #subtract mean of outcome variable of control units of mean of outcome variable of treated units 
 mean(lead[lead$lead == 1,]$infrate) - mean(lead[lead$lead == 0,]$infrate)
-```
 
-The prima facia treatment effect, is the average treatment effect for all data available without taking anything else into account. We take the mean of the outcome variable for all treated units and subtract the mean of the outcome for all control units. 
-
-#### STEP 4
-
-Explain why the Prima Facie effect is not the true average causal effect.
-
-The prima facia treatment effect is not the true treatment effect, because it does not account for any covariates. We do not have any information about the treatment group and the control group. Only if these groups have the same features, or at least very similar ones, we can argue that the difference of the means of the outcome between treated and control is due to the treatment and, therefore, the treatment effect. Here, we do not take any differences into account. As we saw above, the covariates ph and hardness are very unbalanced, so the difference seen in the prima facia effect could be only due to the differences in covariates between treatment and control.
-
-#### STEP 5
-
-Use the two covariates that you identified in Step 1 above and use propensity score matching to create better balance across the two groups. Are the two variables you picked in the step above balanced across the treatment and control groups after propensity score matching? You can use any R function from any package to check this (for instance, you can check the cobalt package). You can also use the `MatchBalance()` function. Show your data visualization and explain.
-
-**Note**: *This is optional but you can use the `gridExtra` package and its `grid.arrange()` function to put all the 4 graphs in one 2 x 2 graph. Read more about the package and how to use it here: https://cran.r-project.org/web/packages/egg/vignettes/Ecosystem.html. Set `nrow = 2`.*
-
-```{r}
-# Your code here
 
 #create a logistic regression to calculate propbability of being treated
 glm_prop <- glm(lead ~ ph + hardness, family = binomial, data = lead)
@@ -180,49 +106,14 @@ p53 <- qplot(lead[m.out$index.treated,]$hardness,
 grid.arrange(p53, p54,p55, p56, top = "After propensity score Matching")
  
 
-```
-
-We can see that after propensity score Matching, the two covariates are more balanced than before. I created the same histograms as before, and we can see, that the histograms of the treatment and control group are similar. Further, I used cobalt to create another plot where we can see the density of an adjusted sample of treatment and control in one plot. This plot also suggests that the covariates are more balanced now between treatment and control. The ph variable looks even more balanced than the hardness variable
-Looking at the numbers, we can see that the means of treated and control are closer to each other and that the standard mean error is smaller for both covariates. For the ph covariate, the new p value is around 0.4, which is higher than before and not significant anymore. The p value for harness is also higher but still low and significant, which suggests that our balance for hardness is now better but still not good.
-
-
-#### STEP 6
-
-What is the treatment effect after propensity score matching?
-
-```{r}
-# Your code here
 
 #we look at the summary of the match ourput
 summary(m.out)
-```
 
-The average treatment effect after propensity score matching is around 0.015.
-
-#### STEP 7
-
-Use any package to perform sensitivity analysis on the matched units using Rosenbaum’s method. What is the critical value of the parameter gamma (i.e., the gamma for which statistical significance goes away)? Does this imply that your treatment effect is sensitive? Explain!
-
-
-```{r}
 # Your code here
 #using rbouds package to calculate different bounds and gammas
 psens(m.out, Gamma=1.5, GammaInc=.05)
-```
 
-The critical value for gamma is 1.4. This means that, if we introduce another, until now unobserved variable correlated to the outcome variable, this variable needs to be 1.4 times more common among children exposed to lead for our results to loose significance.This is a measurement of the sensitivity to hidden bias. A critical gamma of 1.4 indicates that our results are relatively sensitive. It is plausible that a unobserved covariate exists that would change our conclusion. 
-
-#### STEP 8
-
-Use the two covariates that you identified in Step 1 above and use genetic matching (multivariate distance matching, i.e., matching on the variables) to try to create better balance across the two groups. Are the two variables you picked in the step above balanced across the treatment and control groups after genetic matching? You can use any R function from any package to check this (for instance, you can check the cobalt package). You can also use the `MatchBalance()` function. Show your data visualization and explain.
-
-**Note**: *This is optional but you can use the `gridExtra` package and its `grid.arrange()` function to put all the 4 graphs in one 2 x 2 graph. Read more about the package and how to use it here: https://cran.r-project.org/web/packages/egg/vignettes/Ecosystem.html. Set `nrow = 2`.*
-
-**Note**: *In the matching assignment, you may find that the Genetic Matching step takes a while. If you have to reduce pop.size to e.g., 10 or 16 to ensure it stops after only an hour or two, that’s fine. Running your computer for an hour or two is a good thing. Running it for a full day or more is unnecessary overkill (and if this is your situation, change hyperparameters like pop.size to reduce run-time). For example, we suggest you modify the pop.size (e.g., you can set it to 20, 30, etc.!), max.generations (set it to 10, 20 etc.!), and wait.generations (set it to 2, 5, etc.!) and that should expedite things.*
-
-
-```{r}
-# Your code here
 
 #create weights with genetic algorithm
 genout1 <- GenMatch(Tr=lead$lead, X=cbind(lead$ph, lead$hardness), estimand="ATT", M=1, max.generations=200, wait.generations=20, pop.size = 200)
@@ -261,16 +152,6 @@ p83 <- qplot(lead[m.out.gen1$index.treated,]$hardness,
 #combining plots
 grid.arrange(p83, p84,p85, p86, top = "After genetic Matching")
 
-```
-
-We can see that genetic matching has a similar effect as propensity score matching. We can see in the histograms, that the variable distributions are now closer together between treated and control than in the beginning. Especially if we plot with an adjusted sample, the distributions look very similar after matching. Again, we can see that the ph variable is especially balanced and that the hardness variable has higher values in the treated group. Only one p-vale increased. For the ph variable the new p-value is around 0.2 which is large enough to assume balance. For the hardness variable the new p-value is around 0.00019, which is even lower than before matching and still significant and suggests that the variable is still imbalanced. Overall genetic matching reduced less of the imbalance than propensity score matching.  
-
-#### STEP 9
-
-Demonstrate that you know how to perform matching within a narrow caliper (1e-2) caliper on one of the variables and a wide caliper (1e5) on the other one by repeating your analysis from the previous step.
-
-```{r}
-# Your code here
 #finding weitghts with genetic matching algorithm and caliper
 genout2 <- GenMatch(Tr=lead$lead, X=cbind(lead$ph, lead$hardness), estimand="ATT", M=1, max.generations=20, wait.generations=20, pop.size = 200, caliper = c(1e5, 1e-2))
 #matching based on weight and cliper 
@@ -306,100 +187,9 @@ p93 <- qplot(lead[m.out.gen2$index.treated,]$hardness,
        main = "Histogram of ph controll", 
        xlab = "ph", ylab = "count")
  #combining plots
-grid.arrange(p93, p94,p95, p96, top = "After genetic Matching with calipers")
-```
 
-We can see that using the calipers, the distributions are more similar than after genetic matching without calipers. Especially the hardness variable, that was previously very unbalanced and that we used the small caliper on improved. The new p-value for hardness is around 0.02, which is still significant so unbalanced but more balanced than before. But even the ph variables with the larger caliper improved to a p-value of around 1, which shows taht we have a perfect balance. For both variables, the caliper increased the balance but it drops some treated units, so we have a smaller amount of matches.
-
-#### STEP 10
-
-Discuss your results in a paragraph, providing results. Explain how one could use the “exact” option (in Match) to accomplish almost the same thing as you accomplished with “caliper”.
-
-(result descussion see above)
-
-An exact match is a match where the treated and control unit have to have exactly the same covariates in order to be matched. If such a match is not found, we discard the treated unit. When we use the caliper, the distance between the treated and control unit has to be smaller than the caliper in order to get matched and if such a match is not found, the treated unit gets dropped. We can see that exact matching is the same as matching with a caliper of 0. The smaller we make the caliper, the closer our results will be to the results of exact matching. Specifically for the Matching library, we have to add exact = True to use exact matching (in Matchit: method = "exact"). Here we have to consider that distance.tolerance indicates the distance that is used to determine if something is an exact match. All distances smaller than the distance tolerance will be treated as a distance of zero. The default for this value is 1e-05, so if we set the caliper to the same, we will get the same result for caliper as for exact match. The same is true if we change distnace tolerance to our caliper value. 
-
-
-#### STEP 11
-
-What is the treatment effect after genetic matching?
-
-```{r}
-# Your code here
 #we looka the summary of our genetic matching match output
 summary(m.out.gen1)
-```
-After genetic Matching, the treatment effect is around 0.014.
 
-#### STEP 12
-
-Use any package to perform sensitivity analysis on the matched units using Rosenbaum’s method. What is the critical value of the parameter gamma (i.e., the gamma for which statistical significance goes away)? Does this imply that your treatment effect is sensitive? Explain!
-
-```{r}
-# Your code here
 #using rbouds package to calculate different bounds and gammas
 psens(m.out.gen1, Gamma=1.5, GammaInc=.05)
-```
-The critical value for gamma is now 1.35. As above this means that we would need to introduce an unobserved covariate correlated to the outcome that appear at least 1.35 times more in the treated group to make the observations insignificant. Our result is sensitive, since we have a relatively low gamma. It is plausible that a hidden bias exists that would change the interpretation of our results.
-
-#### STEP 13
-
-Summarize the three treatment effects you found (including the prima facie treatment effect) here.
-
-The prima facia treatment effect was around 0.02, while the treatment effect after propensity score matching is around 0.015 and as after genetic matching around 0.014. This indicates that the actual treatment effect is lower than the prima facia treatment effect, but the covariates  are still to unbalanced after matching to conclude the true treatment effect.  
-
-#### STEP 14
-
-Explain which matching method creates better balance across your two covariates.
-
-The propensity scores created a better matching than genetic matching without a caliper. This is because the p-values where higher for both variables. For the hardness variable, propensity matching increased the p-value slightly (from around 0.0003 to around 0.0009) while while genetic matching decreased the p-value (to 0.0002). For the ph variable, both methods increased the p-value, but propensity score matching lead to the higher p-values(original p-value around 0.03, after propensity score matching around 0.4, after genetic matching around 0.2). The genetic matching with caliper outperformed both other methods (p-value for hardness around 0.02, p-value for ph is 1). This method has the disadvantage, that we need to drop treated units. THis means that our treatment effect after this matching will not be the ATT, but the ATT minus the dropped obervastions. 
-
-## QUESTION 2
-Load the “Matching” library, and then run the GerberGreenImai demo by typing:
-
-```{r}
- demo(GerberGreenImai)
-```
-
-Examine the demo’s input / output. Consult the research papers cited in the demo if you wish.
-
-#### STEP 1
-
-Answer the following questions:
-
-1. What is the causal question at the heart of the demo?
-
-  The question is which effect get out the vote phone calls have on the voter   turnout. 
-  
-2. What is the treatment?
-
-  The treatment is the variable PHN.C1 which indicates if a person got a get    out the vote phone call.
-  
-3. What is the outcome?
-
-  The outcome is the variable voted98, which indicates if a person voted.
-  
-4. The demo is written to show that Imai’s results do not achieve balance. Write a not-too-long paragraph stating whether you agree or disagree with this claim, and why.
-
-   I agree with this because we can see that the minimum p value after           matching is < 2.22e-16. This p-values corresponds to the covariates Age and    Age2. This p-value is significant, which means that the treated and control    groups are unbalanced in regard to these covariates. This means that we do    not achieve balance after the matching. To do that, the lowest p-value        should at least be larger than 0.05, and even higher to make a stronger       argument for balance. 
-
-
-
-# End of Assignment
-
-## Final Steps
-
-Before finalizing your project you'll want to be sure there are **comments in your code chunks** and **text outside of your code chunks** to explain what you're doing in each code chunk. These explanations are incredibly helpful for someone who doesn't code or someone unfamiliar to your project.
-
-You have two options for submission:
-
-1. You can complete this .rmd file, knit it to pdf and submit the resulting .pdf file on Forum.
-2. You can complete the Google Doc version of this assignment, include your code, graphs, results, and your explanations wherever necessary and download the Google Doc as a pdf file and submit the pdf file on Forum. If you choose this method, you need to make sure you will provide a link to an .R script file where your code can be found (you can host your code on Github or Google Drive). Note that links to Google Docs are not accepted as your final submission.
-
-
-### Knitting your R Markdown Document
-
-Last but not least, you'll want to **Knit your .Rmd document into a pdf document**. If you get an error, take a look at what the error says and edit your .Rmd document. Then, try to Knit again! Troubleshooting these error messages will teach you a lot about coding in R. If you get any error that doesn't make sense to you, post it on Perusall.
-
-
-Good Luck! The CS112 Teaching Team
