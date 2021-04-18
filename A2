@@ -1,0 +1,228 @@
+
+
+```{r setup, include=FALSE}
+# Don't change the line below
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, 
+                      message=FALSE, fig.width=6, fig.align="center")
+# If you are using other packages, load them here. 
+# If you don't have the following packages installed,
+# please install them first. But don't include the installation
+# code here because every time you knit this document they'll 
+# be reinstalled which is not necessary!
+library(Matching)
+library(knitr)
+library(janitor)
+library(tidyverse)
+library(arm)
+library(caret)
+# we need to set the seed of R's random number generator, 
+# in order to produce comparable results 
+set.seed(928)
+
+
+#create first independent variable with uniform distribution
+team_position <- round(runif(1000, min = 0, max = 20))
+#create second independent variable with uniform distribution
+goals <- round(runif(1000, min = 0, max = 40))
+#create noise with normal distribution
+noise <- round(rnorm(1000, mean=0, sd = 1))
+#create dependent variable with formula
+value <- round(0.7*goals+0.3*team_position + noise)
+
+# creating linear regression model
+predict_value <- lm(value~goals+team_position)
+#print values predicted using the linear regression model
+
+
+#simulate 10000 coefficients for the predicted_vlaue model
+sim_value <- sim(predict_value, n.sim = 10000)
+#create 95% confidence intervals for all coefficients
+quantile(sim_value@coef[,1], probs = c(0.025,0.975))
+quantile(sim_value@coef[,2], probs = c(0.025,0.975))
+quantile(sim_value@coef[,3], probs = c(0.025,0.975))
+
+
+# create new predictions using the linear regression and goals =1, team_position = -2
+new_value_predict <- sim_value@coef[,1]+sim_value@coef[,2]*1+sim_value@coef[,3]*(-2)+sim_value@sigma
+#calculate 95% confidence interval for the prediction
+quantile(new_value_predict, probs = c(0.025,0.975))
+
+#create exercise data with a uniform distribution
+exercise <- round(runif(30, min = 0, max = 14))
+#create noise with a normal distribution
+noise_2 <- round(rnorm(30, mean=0, sd = 20))
+#create dependent variable weight with formula
+weight <- 100 - 1.5* exercise + noise_2
+#create linear model predicting weight based on exercise
+pred_weight <- lm(weight~exercise)
+#print model
+print(pred_weight)
+#plot data
+plot(exercise, weight, main = "Weight of people against how often \n they excercise with regression line", xlab = "number of excercises per week", ylab = "weight in kg")
+#plot regression line of model
+abline(pred_weight)
+
+
+#append an outlier: a persion with high weight and high numbers of exercise
+weight_wo <- append(weight, 150)
+exercise_wo <- append(exercise, 30)
+#create a new linear regression model with outlier
+pred_weight_wo <- lm(weight_wo~exercise_wo)
+#print model
+print(pred_weight_wo)
+#plot data
+plot(exercise_wo, weight_wo, main = "Weight of people against how often \n they excercise with regression line", xlab = "number of excercises per week", ylab = "weight in kg")
+#plot regression line
+abline(pred_weight_wo)
+
+#download data
+aac_intakes_outcomes <- read_csv("aac_intakes_outcomes.csv")
+
+#delete rows where intake_type is empty or NA (1)
+aac_intakes_outcomes <- aac_intakes_outcomes[!(is.na(aac_intakes_outcomes$intake_type) | aac_intakes_outcomes$intake_type==""), ]
+#delete rows where `age_upon_intake_(years)` is empty or NA (1)
+aac_intakes_outcomes <- aac_intakes_outcomes[!(is.na(aac_intakes_outcomes$`age_upon_intake_(years)`) | aac_intakes_outcomes$`age_upon_intake_(years)`==""), ]
+#delete rows where intake_condition is empty or NA (1)
+aac_intakes_outcomes <- aac_intakes_outcomes[!(is.na(aac_intakes_outcomes$intake_condition) | aac_intakes_outcomes$intake_condition==""), ]
+#delete rows where `time_in_shelter_days` is empty or NA (1)
+aac_intakes_outcomes <- aac_intakes_outcomes[!(is.na(aac_intakes_outcomes$`time_in_shelter_days`) | aac_intakes_outcomes$`time_in_shelter_days`==""), ]
+
+#consider only rows that have animal_type = dog (2)
+aac_intakes_outcomes <- aac_intakes_outcomes[aac_intakes_outcomes$animal_type=="Dog", ]
+
+#clean names (3)
+aac_intakes_outcomes <- clean_names(aac_intakes_outcomes)
+
+#remove rows with intake_type = euthanasia request (4)
+aac_intakes_outcomes <- aac_intakes_outcomes[!( aac_intakes_outcomes$intake_type=="Euthanasia Request"), ]
+
+#create new intake condition vector and add it to data frame (5)
+intake_condition_new <- aac_intakes_outcomes$intake_condition
+aac_intakes_outcomes <- cbind(aac_intakes_outcomes, intake_condition_new)
+#define the new intake condition to be care if it was nursing or pregnant (5)
+aac_intakes_outcomes$intake_condition_new[aac_intakes_outcomes$intake_condition_new == "Nursing" | aac_intakes_outcomes$intake_condition_new == "Pregnant"] <- "Care"
+#define new intake condition to be other if not one of the desired conditions (5)
+aac_intakes_outcomes$intake_condition_new[aac_intakes_outcomes$intake_condition_new != "Care" & aac_intakes_outcomes$intake_condition_new != "Normal" & aac_intakes_outcomes$intake_condition_new != "Sick" & aac_intakes_outcomes$intake_condition_new != "Injured"] <- "Other"
+
+
+#create linear regression model
+model <- lm(formula = time_in_shelter_days ~ intake_type + intake_condition_new + 
+    age_upon_intake_years, data = aac_intakes_outcomes)
+#show summery of model
+summary(model)
+
+#calculate R-squared by hand
+pred_val <- predict(model, newdata = aac_intakes_outcomes)
+rss <- sum((aac_intakes_outcomes$time_in_shelter_days - pred_val)**2)
+tss <- sum((aac_intakes_outcomes$time_in_shelter_days - mean(pred_val))**2)
+rsqrt <- 1- (rss/tss)
+rsqrt
+
+
+#generate 1000 sets of coefficients from regression model (1)
+sim_model <- sim(model, n.sim = 1000)
+
+#define vector of age values 
+age_val <- c(0.1, 0.5, 1, 2, 3, 5, 7, 10, 12, 15, 18, 20)
+#define vector for column names of different age predictions
+age_c_names <- as.character(c(0, 0.1, 0.5, 1, 2, 3, 5, 7, 10, 12, 15, 18, 20))
+#create indexes for age predictions
+ind <- c(1:1000)
+#create dataframe with indexes for age predictions
+age_pred <- cbind(ind)
+#for loop that creates predictions for all age values and adds them to data frame
+for(i in 1:12) {
+   current <- sim_model@coef[,1] + sim_model@coef[,3] + sim_model@coef[,5] + age_val[i] * sim_model@coef[,8]
+  age_pred <- cbind(age_pred,current)
+}
+#rename columns
+colnames(age_pred) <- age_c_names
+#print head of data frame (2)
+head(age_pred)
+
+#create vectors for means and upper/lower bound of confidence interval
+age_means <- c()
+age_conf_low <- c()
+age_conf_high <- c()
+
+#for loop that adds means and bounds of 95% confidence interval to vectors
+for(i in 2:13) {
+  age_means <- append(age_means, mean(age_pred[,i]))
+  age_conf_low <- append(age_conf_low, quantile(age_pred[,i], probs = c(0.025)))
+  age_conf_high <- append(age_conf_high, quantile(age_pred[,i], probs = c(0.975)))
+}
+#unname bounds
+unname(age_conf_low)
+unname(age_conf_high)
+#create data frame (3)
+pdata <- data.frame(age_val, age_means, age_conf_low, age_conf_high)
+
+#plot the data with errorbars (4)
+ggplot(pdata, aes(age_val,)) + geom_point(
+     data = pdata, 
+     aes(age_val, age_means), 
+     size = 2) + geom_errorbar(aes(ymin=age_conf_low, ymax=age_conf_high, width=.3))+labs(title="effect of ago upon intake on the length of stay of strayed dogs under normal intake condition" , x ="age of dogs in years", y = "time in shelter in days")
+  
+
+
+#create new data frame for q5 (copy old one)
+aac_intakes_outcomesq5 <- aac_intakes_outcomes
+#create new vector live release as a copt of outcome type and add it to new df
+live_release <- aac_intakes_outcomesq5$outcome_type
+aac_intakes_outcomesq5 <- cbind(aac_intakes_outcomesq5, live_release)
+
+#set new live release variable to true if appropriate
+aac_intakes_outcomesq5$live_release[aac_intakes_outcomesq5$live_release!= "Died" & aac_intakes_outcomesq5$live_release != "Disposal" & aac_intakes_outcomesq5$live_release != "Euthanasia" & aac_intakes_outcomesq5$live_release != "Missing"] <- TRUE
+#set live release to false otherwise
+aac_intakes_outcomesq5$live_release[aac_intakes_outcomesq5$live_release!= TRUE] <- FALSE
+
+#create new fertile vector based on outcome and add it to df
+fertile <- aac_intakes_outcomesq5$sex_upon_outcome
+aac_intakes_outcomesq5 <- cbind(aac_intakes_outcomesq5, fertile)
+#change fertile variable to true if appropriate
+aac_intakes_outcomesq5$fertile[aac_intakes_outcomesq5$fertile!= "Spayed Female" & aac_intakes_outcomesq5$fertile != "Neutered Male"] <- TRUE
+#set fertile variable to false otherwise
+aac_intakes_outcomesq5$fertile[aac_intakes_outcomesq5$fertile!= TRUE] <- FALSE
+#delete rows with NA in live release or fertile 
+aac_intakes_outcomesq5 <- aac_intakes_outcomesq5[!(is.na(aac_intakes_outcomesq5$live_release)), ]
+aac_intakes_outcomesq5 <- aac_intakes_outcomesq5[!(is.na(aac_intakes_outcomesq5$fertile)), ]
+#change fertile and live release to resemble vectors
+aac_intakes_outcomesq5$fertile <- factor(aac_intakes_outcomesq5$fertile)
+aac_intakes_outcomesq5$live_release <- factor(aac_intakes_outcomesq5$live_release)
+
+#estimate sample size
+smp_size <- floor(0.80 * nrow(aac_intakes_outcomesq5))
+#create indexes for the training data
+train_ind_q5 <- sample(seq_len(nrow(aac_intakes_outcomesq5)), size = smp_size)
+
+#split data based on indexes
+train_model <- aac_intakes_outcomesq5[train_ind_q5, ]
+test_model <- aac_intakes_outcomesq5[-train_ind_q5, ]
+
+#create the model with training data
+model_q5 <- glm(live_release~ intake_type + intake_condition_new + age_upon_intake_years + fertile, data=train_model, family="binomial")
+
+#print summary of model
+summary(model_q5)
+#print confidence intervall of coeficients 
+confint(model_q5)
+
+
+#create probabilities on test set
+pred_prob <- predict(model_q5, newdata = test_model, type="response")
+#create predictions based on probabilities and threshold 0.5
+pred_lr <- pred_prob > 0.5
+#show confusion matrix
+confusionMatrix(factor(pred_lr), factor(test_model$live_release))
+
+#create vector for thresholds
+threshs <- c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.7, 0.8, 0.9)
+#for loop to create predictions with different thresholds and print accuracy
+for (i in threshs) {
+  cur_lr <- pred_prob > i
+  cf <- confusionMatrix(factor(cur_lr), factor(test_model$live_release))
+  print(i)
+  print(cf$overall['Accuracy'])
+  print("   ")
+}
+
