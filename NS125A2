@@ -1,0 +1,37 @@
+library(usmap)
+library(tidyverse)
+library(cowplot)
+howe_2016_data <- read_csv("C:/Users/joram/Downloads/howe-2016-data.csv")
+View(howe_2016_data)
+temperature_fig_3 <- read_csv("C:/Users/joram/Downloads/temperature_fig-3.csv", skip = 6)
+View(temperature_fig_3)
+county.to.climdivs <- read.csv("C:/Users/joram/Downloads/county-to-climdivs.txt", sep="")
+View(county.to.climdivs)
+howe_county <- howe_2016_data %>% filter(GeoType == "County")
+View(howe_county)
+data0 <- merge(temperature_fig_3, county.to.climdivs, by.y = c("CLIMDIV_ID"), by.x = c("climate_division"))
+View(data0)
+data1 <- merge(data0, howe_county, by.y = c("GEOID"), by.x = c("POSTAL_FIPS_ID"))
+View(data1)
+data1$tc <- data1$`Temperature Change`
+cor(data1$discuss, data1$tc)
+cor(data1$CO2limits, data1$tc)
+ggplot(data1, aes(x=tc, y=discuss)) + geom_point() + geom_smooth(method=lm) 
++ xlab("temperature change in C") 
++ ylab("percent of people discussing climate cahnge")
+ggplot(data1, aes(x=tc, y=CO2limits)) + geom_point() + geom_smooth(method=lm) 
++ xlab("temperature change in C") 
++ ylab("percent of people suppporting CO2 limits")
+data1$fips <- data1$POSTAL_FIPS_ID
+plot1 <- plot_usmap(data = data1, values = "discuss", color = "NA") + 
+     scale_fill_continuous(name = "percent of people discussing climate change", label = scales::comma, low = "white", high = "red",) + 
+     theme(legend.position = "right")
+plot2 <- plot_usmap(data = data1, values = "tc", color = "NA") + 
+    scale_fill_continuous(name = "Temperature changes from 1901 to 2021 in C", label = scales::comma, low = "white", high = "red",) + 
+    theme(legend.position = "right")
+plot3 <- plot_usmap(data = data1, values = "CO2limits", color = "NA") + 
+     scale_fill_continuous(name = "percentage of peopel supporting CO2 limits", label = scales::comma, low = "white", high = "red",) + 
+     theme(legend.position = "right")
+plot_grid(plot1, plot2, plot3)
+model <- lm(discuss ~ tc, data = data1)
+model
